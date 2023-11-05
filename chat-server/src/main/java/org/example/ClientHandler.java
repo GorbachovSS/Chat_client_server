@@ -1,11 +1,13 @@
 package org.example;
 
+import java.io.Closeable;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 
-public class ClientHandler {
+public class ClientHandler implements Closeable {
+    private boolean isAdmin;
     private Socket socket;
 
     private Server server;
@@ -26,6 +28,11 @@ public class ClientHandler {
         in = new DataInputStream(socket.getInputStream());
         out = new DataOutputStream(socket.getOutputStream());
         username = "User" + userCount++;
+
+        if (server.isFirstUser()){
+            this.isAdmin = true;
+        }
+
         server.subscribe(this);
         new Thread(() -> {
             try {
@@ -34,6 +41,8 @@ public class ClientHandler {
                     // /w user message -> user
 
                     String message = in.readUTF();
+
+
                     if (message.startsWith("/")) {
 
                         if (message.contains("/reg")) {
@@ -46,7 +55,16 @@ public class ClientHandler {
                             String messageUser = message.replace("/w", "").replace(nameUser, "").trim();
 
                             server.sendUserMessage(nameUser, messageUser);
-                        } else if (message.equals("/exit")) {
+                        } else if (message.contains("/kick")) {
+                            if (isAdmin) {
+                                String oldName = this.username;
+                                String[] msgArray = message.split(" ");
+                                String nameUser = msgArray[1];
+                                server.kickUser(nameUser);
+                            }else {
+                               server.sendUserMessage(username, "Ты не админ команда не доступна");
+                            }
+                        }else if (message.equals("/exit")) {
                             break;
                         }
                     } else {
@@ -92,6 +110,19 @@ public class ClientHandler {
         } catch (IOException e) {
             e.printStackTrace();
             disconnect();
+        }
+    }
+
+    @Override
+    public void close() throws IOException {
+
+    }
+
+    public void kickUser() {
+        try {
+            socket.close();
+        } catch (Exception exception) {
+            System.out.println(exception.getCause());
         }
     }
 }

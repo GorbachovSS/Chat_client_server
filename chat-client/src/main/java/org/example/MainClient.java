@@ -63,7 +63,7 @@ public class MainClient extends JFrame implements Runnable {
 
     public static void main(String[] args) throws Exception {
         try (Network network = new Network()) {
-            network.connect(777);
+            network.connect(888);
             new MainClient("chat", network);
             Scanner scanner = new Scanner(System.in);
             while (true) {

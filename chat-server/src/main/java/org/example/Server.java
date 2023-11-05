@@ -52,4 +52,17 @@ public class Server {
             }
         }
     }
+
+    public boolean isFirstUser(){
+        return clients.size() == 0;
+    }
+
+    public void kickUser(String userName) {
+        for (ClientHandler clientHandler : clients) {
+            clientHandler.sendMessage("User " + userName + " was been kicked");
+            if (clientHandler.getUsername().equals(userName)) {
+                clientHandler.kickUser();
+            }
+        }
+    }
 }
