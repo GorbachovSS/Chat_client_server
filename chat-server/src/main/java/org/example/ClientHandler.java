@@ -28,30 +28,42 @@ public class ClientHandler {
         username = "User" + userCount++;
         server.subscribe(this);
         new Thread(() -> {
-                try {
-                    while(true) {
-                        // /exit -> disconnect()
-                        // /w user message -> user
+            try {
+                while (true) {
+                    // /exit -> disconnect()
+                    // /w user message -> user
 
-                        String message = in.readUTF();
-                        if(message.startsWith("/")) {
-                            if(message.equals("/exit")) {
-                                break;
-                            }
+                    String message = in.readUTF();
+                    if (message.startsWith("/")) {
+
+                        if (message.contains("/reg")) {
+                            String oldName = this.username;
+                            this.username = message.replace("/reg", "").trim();
+                            server.broadcastMessage("Пользователь " + oldName + " сменил имя на " + this.username);
+                        } else if (message.contains("/w")) {
+                            String[] msgArray = message.split(" ");
+                            String nameUser = msgArray[1];
+                            String messageUser = message.replace("/w", "").replace(nameUser, "").trim();
+
+                            server.sendUserMessage(nameUser, messageUser);
+                        } else if (message.equals("/exit")) {
+                            break;
                         }
+                    } else {
                         server.broadcastMessage(message);
                     }
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                } finally {
-                    disconnect();
                 }
-            }).start();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            } finally {
+                disconnect();
+            }
+        }).start();
     }
 
     public void disconnect() {
         server.unsubscribe(this);
-        if(socket != null) {
+        if (socket != null) {
             try {
                 socket.close();
             } catch (IOException e) {

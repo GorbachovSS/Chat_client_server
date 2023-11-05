@@ -5,6 +5,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class Server {
     private int port;
@@ -16,7 +17,7 @@ public class Server {
     }
 
     public void start() {
-        try(ServerSocket serverSocket = new ServerSocket(port)) {
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
             while (true) {
                 System.out.println("Сервер запущен на порту " + port);
                 Socket socket = serverSocket.accept();
@@ -42,5 +43,13 @@ public class Server {
     public void unsubscribe(ClientHandler clientHandler) {
         clients.remove(clientHandler);
         broadcastMessage("Клиент: " + clientHandler.getUsername() + " вышел из чата");
+    }
+
+    public void sendUserMessage(String userName, String message) {
+        for (ClientHandler clientHandler : clients) {
+            if (clientHandler.getUsername().equals(userName)) {
+                clientHandler.sendMessage(message);
+            }
+        }
     }
 }
