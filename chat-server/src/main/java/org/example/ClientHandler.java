@@ -8,13 +8,14 @@ import java.net.Socket;
 
 public class ClientHandler implements Closeable {
     private boolean isAdmin;
+    private boolean isAuthorized;
     private Socket socket;
-
     private Server server;
     private DataInputStream in;
     private DataOutputStream out;
-
     private String username;
+    private final DbService dbService;
+    private final String url = "jdbc:postgresql://localhost/chat?user=postgres&password=sa";
 
     private static int userCount = 0;
 
@@ -28,8 +29,10 @@ public class ClientHandler implements Closeable {
         in = new DataInputStream(socket.getInputStream());
         out = new DataOutputStream(socket.getOutputStream());
         username = "User" + userCount++;
+        dbService = new DbService(url);
+        dbService.connect();
 
-        if (server.isFirstUser()){
+        if (server.isFirstUser()) {
             this.isAdmin = true;
         }
 
@@ -41,34 +44,58 @@ public class ClientHandler implements Closeable {
                     // /w user message -> user
 
                     String message = in.readUTF();
+                    if (isAuthorized) {
 
+                        if (message.startsWith("/")) {
 
-                    if (message.startsWith("/")) {
-
-                        if (message.contains("/reg")) {
-                            String oldName = this.username;
-                            this.username = message.replace("/reg", "").trim();
-                            server.broadcastMessage("Пользователь " + oldName + " сменил имя на " + this.username);
-                        } else if (message.contains("/w")) {
-                            String[] msgArray = message.split(" ");
-                            String nameUser = msgArray[1];
-                            String messageUser = message.replace("/w", "").replace(nameUser, "").trim();
-
-                            server.sendUserMessage(nameUser, messageUser);
-                        } else if (message.contains("/kick")) {
-                            if (isAdmin) {
+                            if (message.contains("/reg")) {
                                 String oldName = this.username;
+
+                                if (dbService.updateLogin(oldName, message.replace("/reg", "").trim())) {
+                                    this.username = message.replace("/reg", "").trim();
+                                    server.broadcastMessage("Пользователь " + oldName + " сменил имя на " + this.username);
+                                } else {
+                                    server.broadcastMessage("Не удалось сменить имя!");
+                                }
+                            } else if (message.contains("/w")) {
                                 String[] msgArray = message.split(" ");
                                 String nameUser = msgArray[1];
-                                server.kickUser(nameUser);
-                            }else {
-                               server.sendUserMessage(username, "Ты не админ команда не доступна");
+                                String messageUser = message.replace("/w", "").replace(nameUser, "").trim();
+
+                                server.sendUserMessage(nameUser, messageUser);
+                            } else if (message.contains("/kick")) {
+                                if (isAdmin) {
+                                    String oldName = this.username;
+                                    String[] msgArray = message.split(" ");
+                                    String nameUser = msgArray[1];
+                                    server.kickUser(nameUser);
+                                } else {
+                                    server.sendUserMessage(username, "Ты не админ команда не доступна");
+                                }
+                            } else if (message.equals("/exit")) {
+                                break;
                             }
-                        }else if (message.equals("/exit")) {
-                            break;
+                        } else {
+                            server.broadcastMessage(message);
                         }
                     } else {
-                        server.broadcastMessage(message);
+                        if (message.contains("/auth")) {
+                            String[] msgArray = message.split(" ");
+                            String userName = msgArray[1];
+                            String passwd = msgArray[2];
+
+                            isAuthorized = dbService.checkUserInDb(userName, passwd);
+
+                            if (isAuthorized) {
+                                this.username = userName;
+                                server.sendUserMessage(username, "Вы успешно авторизованы в системе!");
+                            } else {
+                                server.sendUserMessage(username, "Неверный логин или пароль!");
+                            }
+
+                        } else {
+                            server.sendUserMessage(username, "Авторизуйтесь в системе!");
+                        }
                     }
                 }
             } catch (IOException e) {
